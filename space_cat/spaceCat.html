@@ -1,0 +1,337 @@
+<html>
+
+<body>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>	
+
+	<!-- Hidden elements -->
+	<img id="space_cat" src="spacecat.png" />
+	<img id="asteroid" src="asteroid.png" />
+	
+	<!-- Game over div -->
+	<div id="container_game_end">
+		<h1>Cats! You collided!</h1>
+		<h2 style="display: inline-block;">Asteroids evaded: </h2><h2 style="display: inline-block;" id="game_end_score"></h2><br /><br />
+		<input type="button" value="Try again!" onclick="retry()" />
+	</div>
+	
+	<canvas></canvas>
+		
+	<div id="stats">
+			Mouse X: <span id="mouseX"></span><br />
+			Mouse Y: <span id="mouseY"></span><br />
+			FPS: <span id="fps"></span><br />
+			Resolution: <span id="resolution"></span><br />
+			Score: <span id="score"></span>
+			<input type="button" onclick="alert_difficulty()" value="difficulty" /><br />
+			High score: <span id="high_score">0</span>
+	</div>
+	
+	
+</body>
+
+<style>
+
+	html{
+		background-image: url('space.jpg');
+		background-size: cover;	
+	}
+	
+	html,body: hover{
+		cursor: none;
+	}
+	
+	body{
+		background-image: url('stars_new.png');
+		background-size: cover;	
+		margin: 0;
+        overflow: hidden;
+	}
+
+	#stats{
+		width: 250px;
+		height: 110px;
+		background-color: black;
+		color: white;
+		padding: 10px;
+		position: absolute;
+		top: 10px;
+		left: 10px;
+	}
+	
+	canvas{
+		width: 100%;
+		height: 100%;
+	}
+	
+	img{
+		display: none;
+	}
+	
+	#container_game_end{
+		position: absolute;
+		top: 25%;
+		left: 0;
+		display: none;
+		width: 100%;
+		height: 250px;
+		padding-top: 50px;
+		background-color: black;
+		color: white;
+		text-align: center;
+	}
+	
+</style>
+
+<script>
+	
+	// Globals
+	var game_end = false;
+	var asteroidsArray = new Array();
+    var canvas = document.querySelector('canvas');
+    var ctx = canvas.getContext('2d');
+	var W = canvas.width = window.innerWidth; // Get window width
+    var H = canvas.height = window.innerHeight; // Get window height
+	var difficulty = 0;
+	var score = 0;
+	var highScore = 0;
+
+function alert_difficulty(){
+	alert("Current Difficulty: " + difficulty + "\n" + "Easy: [0 - 0.06] Medium: [0.06 - 0.10] Hard: [0.10 - 0.30] Extreme: [0.3+]");
+}
+	
+function game(){
+
+if(!game_end == true){
+	
+    window.requestAnimationFrame = function () { return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.msRequestAnimationFrame || window.oRequestAnimationFrame || function (f) { window.setTimeout(f, 1e3 / 30) } }();	
+	
+	var mouseX = W/2;
+	var mouseY = H/2;
+	
+	// Stats displayed on screen
+	var stat_mouseX = document.getElementById("mouseX");
+	var stat_mouseY = document.getElementById("mouseY");
+	var stat_fps = document.getElementById("fps");
+	var stat_resolution = document.getElementById("resolution").innerHTML = W + " * " + H;
+	var stat_score = document.getElementById("score");
+	
+	
+	// Get mouse position, display it as stat and set it as variable
+	$(document).mousemove(function(e){
+		mouseX = e.pageX;
+		mouseY = e.pageY;
+		
+		stat_mouseX.innerHTML = mouseX;
+		stat_mouseY.innerHTML = mouseY;
+
+	});
+	
+	// Player character 
+	function cat() {
+	// Size and starting position
+        this.x = mouseX; // Position X, default W/2
+        this.y = mouseY; // Position H, default H/2
+		this.width = 100;
+		this.height = 80;
+		
+		var imgCat = document.getElementById("space_cat");
+		
+        this.draw = function (ctx) {
+			ctx.drawImage(imgCat, this.x, this.y, this.width, this.height); 
+		} 
+	} 
+	
+	// Asteroid character
+	function asteroid() {
+		this.x = W - 50;
+		this.y = Math.floor(Math.random() * H - 25);
+		this.width = Math.floor((Math.random() * 100 + 35));
+		this.height = Math.floor((Math.random() * 25 + this.width));
+		this.speedX = Math.floor(Math.random() * 15 + 10);
+		this.speedY = Math.random() * 0.5;
+		 
+		var imgAsteroid = document.getElementById("asteroid");
+		
+		this.draw = function (ctx) { 
+			
+			
+			// The commented out code would rotate the asteroids, but it rotates the whole canvas instead.
+/*			ctx.save();
+			ctx.translate(this.width / 2, this.height / 2);
+			ctx.rotate(0.2);
+			ctx.restore(); */ 
+			ctx.drawImage(imgAsteroid, this.x, this.y, this.width, this.height); 
+		}
+	}
+	
+    var player = new cat();
+
+
+	// FPS counter
+	
+	window.countFPS = (function () {
+	  var lastLoop = (new Date()).getMilliseconds();
+	  var count = 1;
+	  var fps = 0;
+
+	  return function () {
+		var currentLoop = (new Date()).getMilliseconds();
+		if (lastLoop > currentLoop) {
+		  fps = count;
+		  count = 1;
+		} else {
+		  count += 1;
+		}
+		lastLoop = currentLoop;
+		return fps;
+	  };
+	}());
+	
+
+	// Render frame
+	
+	(function renderFrame() {
+        requestAnimationFrame(renderFrame);
+        ctx.clearRect(0, 0, W, H);
+			
+			// Position the player character to the cursor
+			player.x = mouseX - 100; // Move the cat slightly to the left
+			player.y = mouseY;
+			
+	
+			// Difficultty - Make the game more challanging as score increases 
+			if(score >= 0 && score < 20){difficulty = 0.02;} // Difficulty level 1
+			if(score >= 20 && score < 40){difficulty = 0.03;} // Difficulty level 2
+			if(score >= 40 && score < 60){difficulty = 0.04;} // Difficulty level 3
+			if(score >= 60 && score < 80){difficulty = 0.05;} // Difficulty level 4 
+			if(score >= 80 && score < 100){difficulty = 0.06;} // Difficulty level 6 
+			if(score >= 100 && score < 150){difficulty = 0.07;} // Difficulty level 7
+			if(score >= 150 && score < 200){difficulty = 0.08;} // Difficulty level 8
+			if(score >= 200 && score < 250){difficulty = 0.09;} // Difficulty level 9 
+			if(score >= 250 && score < 300){difficulty = 0.10;} // Difficulty level 10
+			if(score >= 300 && score < 400){difficulty = 0.12;} // Difficulty level 11
+			if(score >= 400 && score < 500){difficulty = 0.14;} // Difficulty level 12
+			if(score >= 500 && score < 600){difficulty = 0.16;} // Difficulty level 13
+			if(score >= 600 && score < 750){difficulty = 0.18;} // Difficulty level 14
+			if(score >= 750 && score < 1000){difficulty = 0.20;} // Difficulty level 15
+			if(score >= 1000 && score < 1250){difficulty = 0.25;} // Difficulty level 16
+			if(score >= 1250 && score < 1500){difficulty = 0.30;} // Difficulty level 17
+			if(score >= 1500 && score < 1750){difficulty = 0.35;} // Difficulty level 18
+			if(score >= 1750 && score < 2000){difficulty = 0.40;} // Difficulty level 19
+			if(score >= 2000 && score < 3000){difficulty = 0.50;} // Difficulty level 20
+			
+			
+			// Randomly create a new asteroid using the difficulty
+			if (Math.random() <= difficulty)
+			{
+				var newAsteroid = new asteroid();
+				asteroidsArray.push(newAsteroid);
+			}
+			
+			// Update the position of the asteroids
+			for (var i = asteroidsArray.length - 1; i >= 0; i--) {
+			
+				asteroidsArray[i].draw(ctx);			
+				asteroidsArray[i].x = asteroidsArray[i].x - asteroidsArray[i].speedX;
+				asteroidsArray[i].y = asteroidsArray[i].y - asteroidsArray[i].speedY;
+				
+				// If the asteroid has moved outside the screen width, remove it and increase score
+				if (asteroidsArray[i].x < 0 - (asteroidsArray[i].width * 2)){
+					asteroidsArray.splice(i, 1);
+					if(!game_end == true){
+						score++;
+						stat_score.innerHTML = score;
+					}
+				}
+				
+				else {
+					if(!game_end == true){
+					// Check for collision
+						if (player.x < asteroidsArray[i].x + asteroidsArray[i].width && player.x + player.width > asteroidsArray[i].x && player.y < asteroidsArray[i].y + 
+						asteroidsArray[i].height && player.height + player.y > asteroidsArray[i].y)
+						{
+							
+							// Collision technique works, write collision event here
+							game_end = true;
+							document.getElementById("container_game_end").style.display = "block";
+							document.getElementById("game_end_score").innerHTML = score;
+							
+							if(score > highScore){
+								highScore = score;
+								document.getElementById("high_score").innerHTML = highScore;
+							}
+							
+							score = 0;
+							return;
+							
+						}	
+					} 
+				} 
+			} 
+		
+		if(!game_end == true){
+			player.draw(ctx);
+		}
+		
+		// Display fps on stats
+		stat_fps.innerHTML = countFPS();
+		
+	}());
+}
+}
+
+// This function resets the score, hides the 'game over' div and sets game_end to false //
+function retry(){
+	
+	game_end = false;
+	document.getElementById("score").innerHTML = score;
+	document.getElementById("container_game_end").style.display = "none";
+	// Remove all asteroids for restart
+	asteroidsArray.splice(0, asteroidsArray.length);
+	ctx.clearRect(0, 0, W, H);
+}
+
+// Background animations //
+var screenWidth = screen.width;
+var screenHeight = screen.height;
+
+$(document).ready(function(){
+	function animateBgHtml(){
+		$('html').animate({
+		  'background-position': '-=' + screenWidth + 'px',
+		}, 3500, 'linear', false);
+		$('body').animate({
+		  'background-position': '-=' + screenWidth + 'px',
+		}, 20000, 'linear', false);
+		// Loop the animation by calling itself at the end
+		animateBgHtml();
+	}
+	// Start bg animation
+	animateBgHtml();
+});
+
+game();
+
+</script>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
