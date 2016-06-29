@@ -1,0 +1,3 @@
+Copy the space_cat folder to the desktop, open the index file in a browser to start the game. 
+
+// Note, this game was only tested in Chrome and may not work in other browsers // 
